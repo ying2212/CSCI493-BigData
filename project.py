@@ -1,7 +1,7 @@
 from pyspark.sql import SparkSession
 
 def query1(edges_rdd):
-    # filter for needed metaedges
+    # filter
     needed_rdd = edges_rdd.filter(lambda row: row[1] in ("CbG", "CuG", "CdG", "CtD", "CpD"))
 
     # count genes per drug (CbG, CuG, CdG)
@@ -14,9 +14,11 @@ def query1(edges_rdd):
                             .map(lambda row: (row[0], 1)) \
                             .reduceByKey(lambda a, b: a + b)  # (drug, disease_count)
 
-    #join gene and disease counts
+    # Simplified join and filling missing values with 0
     combined_rdd = gene_rdd.fullOuterJoin(disease_rdd) \
-                           .mapValues(lambda x: (x[0] if x[0] else 0, x[1] if x[1] else 0))  # Fill missing with 0
+                        .mapValues(lambda x: (x[0] if x[0] is not None else 0, 
+                                                x[1] if x[1] is not None else 0))  # Fill missing with 0
+
 
     # Sort and take top 5 drugs by gene count
     top5 = combined_rdd.takeOrdered(5, key=lambda x: -x[1][0])
@@ -98,3 +100,4 @@ if __name__ == "__main__":
         print("Error. Invalid query. Please enter q1, q2, or q3.")
 
     spark.stop()
+
